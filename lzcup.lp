@@ -1,0 +1,53 @@
+%%%% CONSTANTS
+
+#const rmax = 4.
+#const m = 60.
+#const p2 = 10.
+#const p3 = 3.
+#const p4 = 1.
+
+
+%%%% CONSTRAINTS
+
+% C1: each team plays a home game against each other team at most once.
+% C2: home team availability is respected.
+% C3: away team unavailability is respected.
+0 { schedule(HomeTeam, AwayTeam, Time) : home(HomeTeam, Time), not forbidden(AwayTeam, Time) } 1 :-
+   team(HomeTeam), team(AwayTeam), HomeTeam != AwayTeam.
+
+% C4: each team plays at most one game per time slot.
+play(Team, Opp, Time) :- schedule(Team, Opp, Time).
+play(Team, Opp, Time) :- schedule(Opp, Team, Time).
+:- play(Team, Opp, Time), play(Team, Opp2, Time), Opp != Opp2.
+
+% C5: each team plays at most 2 games in a period of rmax time slots.
+:- play(Team, _, Time1), play(Team, _, Time2), play(Team, _, Time3), 
+   Time1 < Time2, Time2 < Time3,
+   Time3 - Time1 < rmax.
+
+% C6: there are at least m time slots between two games with the same pair of teams.
+:- schedule(Team, Opp, Time1), schedule(Opp, Team, Time2), Time1 != Time2, |Time2 - Time1| <= m.
+
+
+%%%% OPTIMIZE
+
+% a close game is a game with a difference of rmax or less of another.
+close_game(Team, Time1, Time2, Diff) :-
+   play(Team, _, Time1), play(Team, _, Time2), Time1 < Time2, Diff = Time2 - Time1, Diff < rmax.
+
+% maximize scheduled games:
+#maximize { 1@10, HomeTeam, AwayTeam, Time : schedule(HomeTeam, AwayTeam, Time) }.
+
+% minimize close games:
+#minimize { p2@1, Team, Time1, Time2 : close_game(Team, Time1, Time2, 1) }.
+#minimize { p3@1, Team, Time1, Time2 : close_game(Team, Time1, Time2, 2) }.
+#minimize { p4@1, Team, Time1, Time2 : close_game(Team, Time1, Time2, 3) }.
+
+
+
+%%%% LEFTOVERS
+
+% C4 (but using schedule predicates):
+% :- schedule(Team, _, Time), schedule(_, Team, Time). 
+% :- schedule(Team,Opp1,Time), schedule(Team,Opp2,Time), Opp1 != Opp2.
+% :- schedule(Opp1,Team,Time), schedule(Opp2,Team,Time), Opp1 != Opp2.
