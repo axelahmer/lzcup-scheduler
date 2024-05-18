@@ -10,6 +10,7 @@ The LZV Cup is a time-relaxed double round-robin tournament where each team play
 
 - `lzcup.lp`: The main ASP file containing the problem encoding and constraints.
 - `data/instances/`: Directory containing the input instances in text format.
+- `data/calendars/gurobi/`: Directory containing Gurobi-generated calendars for validation.
 - `output/`: Directory where the generated schedules and visualizations are stored.
 - `lzcup.py`: Python script to run the scheduling program and visualize the results.
 - `utils.py`: Helper functions used by `lzcup.py`.
@@ -43,13 +44,14 @@ The console output displays the generated schedule matrix with additional format
 
 1. Install Clingo and the required Python dependencies.
 2. Place the input instances in the `data/instances/` directory.
-3. Run `python lzcup.py <instance_number> <rmax> <m> [--threads <num_threads>] [--output_dir <output_directory>] [--configuration <clingo_configuration>]` to generate the schedule for the specified instance.
+3. Run `python lzcup.py <instance_number> <rmax> <m> [--threads <num_threads>] [--output_dir <output_directory>] [--configuration <clingo_configuration>] [--calendar_path <path_to_calendar>]` to generate the schedule for the specified instance or validate an existing calendar.
    - `<instance_number>`: The number of the input instance file.
    - `<rmax>`: The maximum range for close games.
    - `<m>`: The minimum number of time slots between games with the same teams.
    - `--threads`: (Optional) The number of threads to use for solving (default: 4).
    - `--output_dir`: (Optional) The directory to save the output files (default: "output").
    - `--configuration`: (Optional) The configuration for Clingo (default: "auto").
+   - `--calendar_path`: (Optional) Path to an external calendar file for validation.
 
 ## References
 
