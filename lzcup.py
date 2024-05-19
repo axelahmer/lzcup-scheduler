@@ -57,6 +57,42 @@ def report_model(model, num_teams, model_count, solve_start_time, meta_info, out
     meta_info['optimizations'].append(optimizations)
     meta_info['unified_scores'].append(unified_score)
 
+    # Update plots after each model
+    plot_unified_score(meta_info['times'],
+                       meta_info['unified_scores'], output_dir)
+    plot_optimization(meta_info['times'],
+                      meta_info['optimizations'], 0, output_dir)
+    plot_optimization(meta_info['times'],
+                      meta_info['optimizations'], 1, output_dir)
+
+
+def plot_unified_score(times, unified_scores, output_dir):
+    plt.figure(figsize=(10, 6))
+    plt.plot(times, unified_scores, marker='o', label='Unified Score')
+    plt.xlabel('Time (s)')
+    plt.ylabel('Unified Score')
+    plt.title('Unified Score over time')
+    plt.grid(True)
+    plt.legend()
+    plt.yscale('log')  # Set the y-axis to use a logarithmic scale
+    plt.tight_layout()
+    plt.savefig(os.path.join(output_dir, 'unified_score_plot.png'))
+    plt.close()
+
+
+def plot_optimization(times, optimizations, index, output_dir):
+    plt.figure(figsize=(10, 6))
+    plt.plot(times, [opt[index] for opt in optimizations],
+             marker='o', label=f'Optimization {index+1}')
+    plt.xlabel('Time (s)')
+    plt.ylabel(f'Optimization {index+1}')
+    plt.title(f'Optimization {index+1} over time')
+    plt.grid(True)
+    plt.legend()
+    plt.tight_layout()
+    plt.savefig(os.path.join(output_dir, f'optimization{index+1}_plot.png'))
+    plt.close()
+
 
 def main(instance_number, rmax, m, threads, output_dir, configuration, calendar_path=None):
     if calendar_path:
@@ -102,20 +138,6 @@ def main(instance_number, rmax, m, threads, output_dir, configuration, calendar_
     result = control.solve(on_model=report_model_partial)
 
     print(result)
-
-    plt.figure(figsize=(10, 6))
-    for i in range(len(meta_info['optimizations'][0])):
-        plt.plot(meta_info['times'], [
-                 opt[i] for opt in meta_info['optimizations']], marker='o', label=f'Optimization {i+1}')
-    plt.plot(meta_info['times'], meta_info['unified_scores'],
-             marker='o', label='Unified Score')
-    plt.xlabel('Time (s)')
-    plt.ylabel('Score')
-    plt.title('Optimization and Unified Score over time')
-    plt.grid(True)
-    plt.legend()
-    plt.tight_layout()
-    plt.savefig(os.path.join(output_dir, f'optimization_plot.png'))
 
 
 if __name__ == "__main__":
