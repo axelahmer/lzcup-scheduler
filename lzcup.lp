@@ -21,11 +21,11 @@
 :- schedule(Opp1,Team,Time), schedule(Opp2,Team,Time), Opp1 != Opp2.
 
 % C5: each team plays at most 2 games in a period of rmax time slots.
-play(Team, Opp, Time) :- schedule(Team, Opp, Time).
-play(Team, Opp, Time) :- schedule(Opp, Team, Time).
-:- play(Team, _, Time1), play(Team, _, Time2), play(Team, _, Time3), 
+play(Team, Time) :- schedule(Team, _, Time).
+play(Team, Time) :- schedule(_, Team, Time).
+:- play(Team, Time1), play(Team, Time2), play(Team, Time3), 
    Time1 < Time2, Time2 < Time3,
-   Time3 - Time1 < rmax.
+   Time3 - Time1 <= rmax.
 
 % C6: there are at least m time slots between two games with the same pair of teams.
 :- schedule(Team, Opp, Time1), schedule(Opp, Team, Time2), Time1 != Time2, |Time2 - Time1| <= m.
@@ -35,12 +35,16 @@ play(Team, Opp, Time) :- schedule(Opp, Team, Time).
 
 % a close game is a game with a difference of rmax or less of another.
 close_game(Team, Time1, Time2, Diff) :-
-   play(Team, _, Time1), play(Team, _, Time2), Time1 < Time2, Diff = Time2 - Time1, Diff < rmax.
+   play(Team, Time1), play(Team, Time2), Time1 < Time2, Diff = Time2 - Time1, Diff < rmax.
 
 % maximize scheduled games:
-#maximize { 1@10, HomeTeam, AwayTeam, Time : schedule(HomeTeam, AwayTeam, Time) }.
+#maximize { 1@10, HomeTeam, AwayTeam : schedule(HomeTeam, AwayTeam, Time) }.
+
 
 % minimize close games:
-#minimize { p2@1, Team, Time1, Time2 : close_game(Team, Time1, Time2, 1) }.
-#minimize { p3@1, Team, Time1, Time2 : close_game(Team, Time1, Time2, 2) }.
-#minimize { p4@1, Team, Time1, Time2 : close_game(Team, Time1, Time2, 3) }.
+#minimize { p2@1, Team, Time1, 1 : close_game(Team, Time1, Time2, 1) }.
+#minimize { p3@1, Team, Time1, 2 : close_game(Team, Time1, Time2, 2) }.
+#minimize { p4@1, Team, Time1, 3 : close_game(Team, Time1, Time2, 3) }.
+
+% #show schedule/3.
+% #show close_game/4.
