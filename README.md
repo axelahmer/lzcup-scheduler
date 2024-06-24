@@ -10,9 +10,10 @@ The LZV Cup is a time-relaxed double round-robin tournament where each team play
 
 - `lzcup.lp`: The main ASP file containing the problem encoding and constraints.
 - `data/instances/`: Directory containing the input instances in text format.
-- `output/`: Directory where the generated schedules and visualizations are stored.
-- `lzcup.py`: Python script to run the scheduling program and visualize the results.
-- `utils.py`: Helper functions used by `lzcup.py`.
+- `data/calendars/gurobi/`: Directory containing Gurobi-generated calendars for validation.
+- `solver.py`: Python script to solve the scheduling problem and report results.
+- `run_batch.py`: Python script to run a batch of instances.
+- `utils.py`: Helper functions used by `solver.py` and `run_batch.py`.
 
 ## Input Instance Format
 
@@ -24,7 +25,7 @@ The input instances are located in the `data/instances/` directory. Each instanc
 
 ## Output Schedule Format
 
-The generated schedules are saved in the `output/` directory. Each schedule file has the following format:
+The generated schedules are saved in the results CSV file. Each schedule is represented in the following format within the CSV:
 
 - Each row represents a home team, and each column represents an away team.
 - The cell (i, j) stores the time slot in which home team i plays against away team j.
@@ -41,15 +42,52 @@ The console output displays the generated schedule matrix with additional format
 
 ## Usage
 
-1. Install Clingo and the required Python dependencies.
-2. Place the input instances in the `data/instances/` directory.
-3. Run `python lzcup.py <instance_number> <rmax> <m> [--threads <num_threads>] [--output_dir <output_directory>] [--configuration <clingo_configuration>]` to generate the schedule for the specified instance.
-   - `<instance_number>`: The number of the input instance file.
-   - `<rmax>`: The maximum range for close games.
-   - `<m>`: The minimum number of time slots between games with the same teams.
-   - `--threads`: (Optional) The number of threads to use for solving (default: 4).
-   - `--output_dir`: (Optional) The directory to save the output files (default: "output").
-   - `--configuration`: (Optional) The configuration for Clingo (default: "auto").
+### solver.py
+
+The `solver.py` script solves a single instance of the scheduling problem. 
+
+#### Command:
+```
+python solver.py <instance_number> <rmax> <m> [--threads <num_threads>] [--output_dir <output_directory>] [--configuration <clingo_configuration>] [--calendar_path <path_to_calendar>] [--timeout <timeout>] [--name <run_name>] [--heuristic] [--render]
+```
+
+#### Parameters:
+
+- `<instance_number>`: (int) The number of the input instance file.
+- `<rmax>`: (int) The maximum range for close games.
+- `<m>`: (int) The minimum number of time slots between games with the same teams.
+- `--threads`: (Optional) (int) The number of threads to use for solving (default: 4).
+- `--output_dir`: (Optional) (str) The directory to save the output files (default: "output").
+- `--configuration`: (Optional) (str) The configuration for Clingo (default: "auto").
+- `--calendar_path`: (Optional) (str) Path to an external calendar file for validation.
+- `--timeout`: (Optional) (int) Timeout in seconds (default: 60).
+- `--name`: (Optional) (str) Name of the run for identification (default: "default_run").
+- `--heuristic`: (Optional) Use Domain heuristic.
+- `--render`: (Optional) Render the schedule matrix for each model.
+
+### run_batch.py
+
+The `run_batch.py` script runs a batch of instances. 
+
+#### Command:
+```
+python run_batch.py <instance_lower> <instance_upper> [--rmax <rmax>] [--m <m>] [--threads <num_threads>] [--output_dir <output_directory>] [--configuration <clingo_configuration>] [--timeout <timeout>] [--name <run_name>] [--heuristic] [--render] [--calendar <path_to_calendar>]
+```
+
+#### Parameters:
+
+- `<instance_lower>`: (int) The lower bound of instance numbers to solve.
+- `<instance_upper>`: (int) The upper bound of instance numbers to solve.
+- `--rmax`: (Optional) (int) The maximum range for close games (default: 4).
+- `--m`: (Optional) (int) The minimum number of time slots between games with the same teams (default: 60).
+- `--threads`: (Optional) (int) The number of threads to use for solving (default: 2).
+- `--output_dir`: (Optional) (str) The directory to save the output files (default: "results").
+- `--configuration`: (Optional) (str) The configuration for Clingo (default: "auto").
+- `--timeout`: (Optional) (int) Timeout in seconds (default: 60).
+- `--name`: (Required) (str) Name of the batch run for identification.
+- `--heuristic`: (Optional) Use Domain heuristic.
+- `--render`: (Optional) Render the schedule matrix for each model.
+- `--calendar`: (Optional) (str) Path to calendar file to validate.
 
 ## References
 
