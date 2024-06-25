@@ -45,7 +45,7 @@ def report_model(model, num_teams, solve_start_time, meta_info, csv_writer, rend
 
     write_csv_row(csv_writer, data)
 
-    print(f"Model {model.number}, Time: {solve_duration:.2f}s, Optimizations {unified_score} {optimizations}, Optimal: {model.optimality_proven}")
+    print(f"Model {model.number}, Time: {solve_duration:.2f}s, Score: {unified_score} {optimizations}, Opt?: {model.optimality_proven}")
 
     if render:
         diff_map = build_diff_map(close_games)
