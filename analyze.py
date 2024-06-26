@@ -36,7 +36,7 @@ def create_bar_plot(data, output_path):
     run_names = ['GUROBI', 'TABU'] + sorted(data[~data['run_name'].isin(['GUROBI', 'TABU'])]['run_name'].unique().tolist())
     colors = ['blue', 'red'] + sns.color_palette(n_colors=len(run_names)-2)
     
-    ax = sns.barplot(x='instance', y='score', hue='run_name', data=data, hue_order=run_names, palette=colors)
+    ax = sns.barplot(x='instance', y='score', hue='run_name', data=data, hue_order=run_names, palette=dict(zip(run_names, colors)))
     plt.xlabel('Instance')
     plt.ylabel('Score (lower is better)')
     plt.title('Performance of Runs Including GUROBI and TABU')
@@ -69,23 +69,32 @@ def create_box_plot(data, output_path):
     run_names = ['GUROBI', 'TABU'] + sorted(data[~data['run_name'].isin(['GUROBI', 'TABU'])]['run_name'].unique().tolist())
     colors = ['blue', 'red'] + sns.color_palette(n_colors=len(run_names)-2)
     
-    sns.boxplot(x='run_name', y='score', data=data, order=run_names, palette=colors)
+    sns.boxplot(x='run_name', y='score', data=data, order=run_names, hue='run_name', palette=dict(zip(run_names, colors)))
     plt.xlabel('Run Name')
     plt.ylabel('Score (lower is better)')
     plt.title('Distribution of Scores Across Instances')
     plt.yscale('log')
     plt.xticks(rotation=45)
+    plt.legend([],[], frameon=False)  # Remove legend as it's redundant with x-axis labels
     plt.tight_layout()
     plt.savefig(output_path)
     plt.close()
 
 def get_best_runs(data):
-    def find_best_runs(group):
-        min_score = group['score'].min()
-        best_runs = group[group['score'] == min_score]['run_name'].tolist()
-        return pd.Series({'best_runs': ', '.join(best_runs), 'min_score': min_score})
+    # Find the minimum score for each instance
+    min_scores = data.groupby('instance')['score'].min().reset_index()
+    min_scores = min_scores.rename(columns={'score': 'min_score'})
     
-    return data.groupby('instance').apply(find_best_runs).reset_index()
+    # Merge the minimum scores back to the original data
+    merged = data.merge(min_scores, on='instance')
+    
+    # Filter for rows where score equals min_score and aggregate run names
+    best_runs = merged[merged['score'] == merged['min_score']].groupby('instance').agg({
+        'run_name': lambda x: ', '.join(sorted(x)),
+        'min_score': 'first'
+    }).reset_index()
+    
+    return best_runs
 
 def analyze_runs(df, gurobi_scores, tabu_scores, run_names=None, output_dir='results'):
     plots_dir = os.path.join(output_dir, 'plots')
@@ -108,7 +117,7 @@ def analyze_runs(df, gurobi_scores, tabu_scores, run_names=None, output_dir='res
     print(avg_relative_performance)
 
     best_runs = get_best_runs(best_scores)
-    run_counts = best_runs['best_runs'].str.split(', ').explode().value_counts()
+    run_counts = best_runs['run_name'].str.split(', ', expand=True).stack().value_counts()
 
     print("\nNumber of times each run was among the best (including ties):")
     print(run_counts)
@@ -118,7 +127,7 @@ def analyze_runs(df, gurobi_scores, tabu_scores, run_names=None, output_dir='res
 
     print("\nBest run(s) for each instance:")
     for _, row in best_runs.iterrows():
-        print(f"Instance {row['instance']}: {row['best_runs']}")
+        print(f"Instance {row['instance']}: {row['run_name']}")
 
     pivot_data = best_scores.pivot(index='instance', columns='run_name', values='score')
     best_scores = pivot_data.min(axis=1)
@@ -131,6 +140,7 @@ def analyze_runs(df, gurobi_scores, tabu_scores, run_names=None, output_dir='res
 
     print("Analysis complete. Visualizations saved in the results/plots folder.")
 
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Analyze and compare run results for indoor football scheduling")
     parser.add_argument("-r", "--runs", nargs="*", help="Specific run names to analyze. If not provided, all runs will be analyzed.")
@@ -138,7 +148,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     gurobi_scores = [2087, 80, 58, 54, 52, 39, 38, 1036, 35, 28, 22, 20, 16, 1013, 13, 8, 7, 6, 5, 5, 2004, 4, 4, 4, 4, 4, 3, 3, 3, 2, 1001, 1, 1, 3000, 1000, 1000, 1000, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-    tabu_scores = [2087, 81, 58, 54, 66, 39, 41, 1036, 39, 29, 32, 20, 18, 1015, 13, 8, 7, 6, 5, 5, 2004, 6, 4, 4, 4, 4, 8, 3, 3, 4, 1001, 1, 1, 3000, 1000, 1000, 1000, 0, 0, 0, 0] + [0] * 11  # Extending to 52 instances
+    tabu_scores = [2087, 81, 58, 54, 66, 39, 41, 1036, 39, 29, 32, 20, 18, 1015, 13, 8, 7, 6, 5, 5, 2004, 6, 4, 4, 4, 4, 8, 3, 3, 4, 1001, 1, 1, 3000, 1000, 1000, 1000, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
     df = load_data('results/results.csv')
     
     print(f"Analyzing {'specified' if args.runs else 'all'} runs")
