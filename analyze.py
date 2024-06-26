@@ -9,23 +9,37 @@ import argparse
 def load_data(file_path):
     return pd.read_csv(file_path)
 
-def calculate_relative_performance(df, gurobi_scores):
+def add_baseline_to_data(df, gurobi_scores, tabu_scores):
     gurobi_df = pd.DataFrame({
         'instance': range(1, len(gurobi_scores) + 1),
-        'gurobi_score': gurobi_scores
+        'run_name': 'GUROBI',
+        'score': gurobi_scores
     })
+    tabu_df = pd.DataFrame({
+        'instance': range(1, len(tabu_scores) + 1),
+        'run_name': 'TABU',
+        'score': tabu_scores
+    })
+    return pd.concat([df, gurobi_df, tabu_df], ignore_index=True)
+
+def calculate_relative_performance(df):
     best_scores = df.groupby(['instance', 'run_name'])['score'].min().reset_index()
-    merged_scores = best_scores.merge(gurobi_df, on='instance', how='left')
-    merged_scores['relative_to_gurobi'] = merged_scores['score'] / merged_scores['gurobi_score']
+    gurobi_scores = best_scores[best_scores['run_name'] == 'GUROBI'].set_index('instance')['score']
+    
+    merged_scores = best_scores.merge(gurobi_scores, on='instance', suffixes=('', '_gurobi'))
+    merged_scores['relative_to_gurobi'] = merged_scores['score'] / merged_scores['score_gurobi']
     merged_scores['relative_to_gurobi'] = merged_scores['relative_to_gurobi'].replace([np.inf, -np.inf], np.nan)
     return merged_scores
 
 def create_bar_plot(data, output_path):
     plt.figure(figsize=(20, 10))
-    ax = sns.barplot(x='instance', y='relative_to_gurobi', hue='run_name', data=data)
+    run_names = ['GUROBI', 'TABU'] + sorted(data[~data['run_name'].isin(['GUROBI', 'TABU'])]['run_name'].unique().tolist())
+    colors = ['blue', 'red'] + sns.color_palette(n_colors=len(run_names)-2)
+    
+    ax = sns.barplot(x='instance', y='score', hue='run_name', data=data, hue_order=run_names, palette=colors)
     plt.xlabel('Instance')
-    plt.ylabel('Score Relative to GUROBI (lower is better)')
-    plt.title('Performance of Runs Relative to GUROBI Results')
+    plt.ylabel('Score (lower is better)')
+    plt.title('Performance of Runs Including GUROBI and TABU')
     plt.legend(title='Run Name', bbox_to_anchor=(1.05, 1), loc='upper left')
     plt.yscale('log')
     ax.grid(True, which='both', linestyle='--', linewidth=0.5)
@@ -44,19 +58,22 @@ def create_pie_chart(data, labels, title, output_path):
 
 def create_heatmap(data, output_path):
     plt.figure(figsize=(20, 12))
-    sns.heatmap(data, cmap='YlOrRd', annot=False, fmt='.2f', cbar_kws={'label': 'Relative to GUROBI'})
-    plt.title('Heatmap of Run Performance Relative to GUROBI')
+    sns.heatmap(data, cmap='YlOrRd', annot=False, fmt='.2f', cbar_kws={'label': 'Relative to Best Score'})
+    plt.title('Heatmap of Run Performance Relative to Best Score')
     plt.tight_layout()
     plt.savefig(output_path)
     plt.close()
 
 def create_box_plot(data, output_path):
     plt.figure(figsize=(12, 6))
-    sns.boxplot(x='run_name', y='score', data=data)
+    run_names = ['GUROBI', 'TABU'] + sorted(data[~data['run_name'].isin(['GUROBI', 'TABU'])]['run_name'].unique().tolist())
+    colors = ['blue', 'red'] + sns.color_palette(n_colors=len(run_names)-2)
+    
+    sns.boxplot(x='run_name', y='score', data=data, order=run_names, palette=colors)
     plt.xlabel('Run Name')
-    plt.ylabel('Best Score (lower is better)')
-    plt.title('Distribution of Best Scores Across Instances')
-    plt.yscale('log')  # Set y-axis to log scale
+    plt.ylabel('Score (lower is better)')
+    plt.title('Distribution of Scores Across Instances')
+    plt.yscale('log')
     plt.xticks(rotation=45)
     plt.tight_layout()
     plt.savefig(output_path)
@@ -70,23 +87,27 @@ def get_best_runs(data):
     
     return data.groupby('instance').apply(find_best_runs).reset_index()
 
-def analyze_runs(df, gurobi_scores, run_names=None, output_dir='results'):
+def analyze_runs(df, gurobi_scores, tabu_scores, run_names=None, output_dir='results'):
     plots_dir = os.path.join(output_dir, 'plots')
     os.makedirs(plots_dir, exist_ok=True)
 
+    df = add_baseline_to_data(df, gurobi_scores, tabu_scores)
+    
     if run_names:
+        run_names = ['GUROBI', 'TABU'] + run_names
         df = df[df['run_name'].isin(run_names)]
 
-    best_scores_with_gurobi = calculate_relative_performance(df, gurobi_scores)
+    best_scores = df.groupby(['instance', 'run_name'])['score'].min().reset_index()
 
-    create_bar_plot(best_scores_with_gurobi, os.path.join(plots_dir, 'run_comparison_to_gurobi_bar_plot.png'))
-    create_box_plot(best_scores_with_gurobi, os.path.join(plots_dir, 'best_scores_distribution_box_plot.png'))
+    create_bar_plot(best_scores, os.path.join(plots_dir, 'run_comparison_bar_plot.png'))
+    create_box_plot(best_scores, os.path.join(plots_dir, 'scores_distribution_box_plot.png'))
 
-    avg_relative_to_gurobi = best_scores_with_gurobi.groupby('run_name')['relative_to_gurobi'].mean().sort_values()
+    relative_performance = calculate_relative_performance(df)
+    avg_relative_performance = relative_performance.groupby('run_name')['relative_to_gurobi'].mean().sort_values()
     print("\nAverage performance relative to GUROBI (lower is better, 1.0 means equal to GUROBI):")
-    print(avg_relative_to_gurobi)
+    print(avg_relative_performance)
 
-    best_runs = get_best_runs(best_scores_with_gurobi)
+    best_runs = get_best_runs(best_scores)
     run_counts = best_runs['best_runs'].str.split(', ').explode().value_counts()
 
     print("\nNumber of times each run was among the best (including ties):")
@@ -99,20 +120,14 @@ def analyze_runs(df, gurobi_scores, run_names=None, output_dir='results'):
     for _, row in best_runs.iterrows():
         print(f"Instance {row['instance']}: {row['best_runs']}")
 
-    gurobi_matches = (best_scores_with_gurobi['score'] <= best_scores_with_gurobi['gurobi_score']).groupby(best_scores_with_gurobi['run_name']).sum()
-    print("\nNumber of times each run matched or beat GUROBI:")
-    print(gurobi_matches)
-
-    create_pie_chart(gurobi_matches.values, gurobi_matches.index, 'Distribution of Runs Matching or Beating GUROBI', 
-                     os.path.join(plots_dir, 'gurobi_matches_pie_chart.png'))
+    pivot_data = best_scores.pivot(index='instance', columns='run_name', values='score')
+    best_scores = pivot_data.min(axis=1)
+    relative_to_best = pivot_data.div(best_scores, axis=0)
+    create_heatmap(relative_to_best, os.path.join(plots_dir, 'relative_performance_heatmap.png'))
 
     print("\nData statistics:")
-    print(f"Number of unique instances: {len(best_scores_with_gurobi['instance'].unique())}")
-    print(f"Number of unique runs: {len(best_scores_with_gurobi['run_name'].unique())}")
-    print(f"Number of instances with GUROBI results: {len(gurobi_scores)}")
-
-    pivot_data = best_scores_with_gurobi.pivot(index='instance', columns='run_name', values='relative_to_gurobi')
-    create_heatmap(pivot_data, os.path.join(plots_dir, 'relative_performance_heatmap.png'))
+    print(f"Number of unique instances: {len(best_scores.index)}")
+    print(f"Number of unique runs: {len(pivot_data.columns)}")
 
     print("Analysis complete. Visualizations saved in the results/plots folder.")
 
@@ -123,8 +138,9 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     gurobi_scores = [2087, 80, 58, 54, 52, 39, 38, 1036, 35, 28, 22, 20, 16, 1013, 13, 8, 7, 6, 5, 5, 2004, 4, 4, 4, 4, 4, 3, 3, 3, 2, 1001, 1, 1, 3000, 1000, 1000, 1000, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    tabu_scores = [2087, 81, 58, 54, 66, 39, 41, 1036, 39, 29, 32, 20, 18, 1015, 13, 8, 7, 6, 5, 5, 2004, 6, 4, 4, 4, 4, 8, 3, 3, 4, 1001, 1, 1, 3000, 1000, 1000, 1000, 0, 0, 0, 0] + [0] * 11  # Extending to 52 instances
     df = load_data('results/results.csv')
     
     print(f"Analyzing {'specified' if args.runs else 'all'} runs")
     
-    analyze_runs(df, gurobi_scores, args.runs, args.output)
+    analyze_runs(df, gurobi_scores, tabu_scores, args.runs, args.output)
