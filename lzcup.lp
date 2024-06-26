@@ -54,9 +54,9 @@ close_game(Team, Time1, Time2, Diff) :-
 #maximize { 1@10, HomeTeam, AwayTeam : schedule(HomeTeam, AwayTeam, Time) }.
 
 % minimize close games:
-#minimize { p2@1, Team, Time1 : close_game(Team, Time1, Time2, 1) }.
-#minimize { p3@1, Team, Time1 : close_game(Team, Time1, Time2, 2) }.
-#minimize { p4@1, Team, Time1 : close_game(Team, Time1, Time2, 3) }.
+#minimize { p2@1, Team, Time : close_game(Team, Time, _, 1) }.
+#minimize { p3@1, Team, Time : close_game(Team, Time, _, 2) }.
+#minimize { p4@1, Team, Time : close_game(Team, Time, _, 3) }.
 
 % #show schedule/3.
 % #show close_game/4.
