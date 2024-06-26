@@ -37,7 +37,7 @@ play(Team, Time) :- schedule(_, Team, Time).
 #heuristic schedule(_, AwayTeam, Time) : not home(AwayTeam, Time). [2, factor]
 
 % calc the number of time slots teams can play with one another
-% possible_matches(HomeTeam, AwayTeam, N) :- team(HomeTeam), team(AwayTeam), HomeTeam!=TeamAway, N = #count { Time : home(HomeTeam, Time), not forbidden(AwayTeam, Time), time(Time) }.
+% possible_matches(HomeTeam, AwayTeam, N) :- team(HomeTeam), team(AwayTeam), HomeTeam!=AwayTeam, N = #count { Time : home(HomeTeam, Time), not forbidden(AwayTeam, Time), time(Time) }.
 
 % prefer to schedule games that have less possible matches 
 % #heuristic schedule(HomeTeam, AwayTeam, _) : possible_matches(HomeTeam, AwayTeam, N), N<100. [100-N, factor]
